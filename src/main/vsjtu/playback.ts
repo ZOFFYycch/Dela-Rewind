@@ -231,8 +231,9 @@ async function fetchUp(target: string, request: Request, legacy = false): Promis
       NETWORK_TIMEOUT_MS,
     );
   const headers = new Headers();
-  // 旧版录像的签名分片在 videos.sjtu.edu.cn，缺少该 Referer 会被 nginx 以 403 拒绝。
-  if (legacy) headers.set('Referer', 'https://v.sjtu.edu.cn/');
+  // videos.sjtu.edu.cn 的签名分片会被 nginx 按来源拦截；往期录像（新旧页面）都需要该 Referer。
+  if (legacy || new URL(target).hostname === 'videos.sjtu.edu.cn')
+    headers.set('Referer', 'https://v.sjtu.edu.cn/');
   for (const name of ['range', 'if-range']) {
     const value = request.headers.get(name);
     if (value) headers.set(name, value);
