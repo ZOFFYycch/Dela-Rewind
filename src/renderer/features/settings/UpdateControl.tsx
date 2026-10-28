@@ -1,4 +1,4 @@
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, RefreshCw } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { DownloadProgressRow } from '../../components/download-progress';
 import { SettingRow } from './SettingRow';
@@ -16,6 +16,7 @@ export function UpdateControl() {
   if (!state) return null;
   const view = updateView(state);
   const action = view.action;
+  const checking = state.phase === 'checking';
 
   return (
     <SettingsGroup settingId="app-update">
@@ -40,7 +41,12 @@ export function UpdateControl() {
             total={state.total}
           />
         ) : null}
-        {action && view.label ? (
+        {checking ? (
+          <Button disabled size="sm" variant="secondary">
+            <RefreshCw className="animate-spin" />
+            检查更新
+          </Button>
+        ) : action && view.label ? (
           <Button
             onClick={() => {
               if (action === 'install') useUpdateState.setState({ dismissedVersion: null });
