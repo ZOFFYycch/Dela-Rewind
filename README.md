@@ -1,25 +1,19 @@
+# Dela Rewind
+
 <div align="center">
 
-<picture>
-  <img src="assets/Dela_white_bg.png" alt="Dela" width="160">
-</picture>
+**An unofficial fork of Dela, focused on past-semester browsing and legacy classroom recordings.**
+
+Base: upstream Dela 2.2.2 · [Upstream repository](https://github.com/Chang-Yo/Dela)
 
 </div>
+
+> [!NOTE]
+> 这不是官方 Dela 发布。Dela Rewind 基于上游最新代码，重点增加：往期学期浏览、旧版课堂录像入口、Canvas 资料显示全部学期。  
+> 中文说明：它不是“旧版本的 Dela”，而是“能回看旧内容的 Dela 修改版”。
 
 ---
 
-<div align="center">
-
-**An Agent Harness designed for SJTUer**
-</div>
-
-<div align="center">
-
-_The world keeps changing. Dela stays with you._
-
-</div>
-
----
 
 > [!IMPORTANT]
 > 下载、安装或使用 Dela，即视为你已阅读并同意本项目的[使用条款](docs/terms.md)与[隐私条款](docs/privacy.md)。
