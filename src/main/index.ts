@@ -53,6 +53,7 @@ import {
 } from './agent';
 import { applyTheme, registerSettingsIpc, savedIcon, savedTheme, savedZoom } from './settings';
 import { registerUpdateIpc, startBackgroundUpdateCheck } from './update';
+import { registerUpstreamUpdateIpc } from './update/upstream';
 
 import Database from 'better-sqlite3';
 import { spawn as spawnPty } from 'node-pty';
@@ -217,6 +218,7 @@ app
     registerNotificationsIpc();
     registerTodoIpc();
     registerUpdateIpc();
+    registerUpstreamUpdateIpc();
     initializeNotifications();
     // 回收未被任何会话引用的内联图片（上次运行遗留的草稿图片等）。
     gcChatMedia();

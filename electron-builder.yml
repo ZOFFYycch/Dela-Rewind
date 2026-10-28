@@ -48,10 +48,9 @@ extraResources:
 npmRebuild: false
 win:
   publish:
-    provider: generic
-    url: https://openlist.frameneo.com/sd/Dela_latest_release/
-    channel: latest
-    useMultipleRangeRequest: false
+    provider: github
+    owner: ZOFFYycch
+    repo: Dela-Rewind
   extraResources:
     - from: vendor/openssh
       to: openssh
@@ -74,13 +73,11 @@ win:
 mac:
   icon: out/main/icons/Dela_white_bg.png
   category: public.app-category.productivity
-  # 与 Windows 同一个 CDN 目录：electron-updater 据此生成 latest-mac.yml 并把
-  # app-update.yml 打进 .app；mac 更新走 zip，dmg 仅供首次安装。
+  # 与 Windows 共用同一个 GitHub Releases 更新源；mac 更新走 zip，dmg 仅供首次安装。
   publish:
-    provider: generic
-    url: https://openlist.frameneo.com/sd/Dela_latest_release/
-    channel: latest
-    useMultipleRangeRequest: false
+    provider: github
+    owner: ZOFFYycch
+    repo: Dela-Rewind
   target:
     - target: dmg
       arch:

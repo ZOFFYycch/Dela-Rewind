@@ -50,6 +50,14 @@ export interface UpdateSnapshot {
   failedAt: UpdateStep | null;
 }
 
+export interface UpstreamUpdateSnapshot {
+  phase: 'idle' | 'checking' | 'up-to-date' | 'available' | 'error';
+  currentVersion: string;
+  latestVersion: string | null;
+  checkedAt: string | null;
+  detail: string | null;
+}
+
 export interface UpdateApi {
   getState(): Promise<UpdateSnapshot>;
   /** 检查 CDN 的正式版更新。已在检查中时不重复发起。 */
@@ -62,5 +70,9 @@ export interface UpdateApi {
   deferInstall(): Promise<void>;
   /** 兜底入口：打开安装包下载页。 */
   openDownloadPage(): Promise<void>;
+  /** 上游 Dela 只读版本检查，不提供下载/安装。 */
+  upstreamGetState(): Promise<UpstreamUpdateSnapshot>;
+  upstreamCheck(): Promise<UpstreamUpdateSnapshot>;
   onState(listener: (state: UpdateSnapshot) => void): () => void;
+  onUpstreamState(listener: (state: UpstreamUpdateSnapshot) => void): () => void;
 }

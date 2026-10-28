@@ -6,6 +6,7 @@ import { AppShell } from '../components/AppShell';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { MailView } from '../features/mail';
 import { ClassroomView } from '../features/classroom';
+import { OldClassroomView } from '../features/old-classroom';
 import { CompletionOverlay } from '../features/onboarding/CompletionOverlay';
 import { OnboardingFlow } from '../features/onboarding/OnboardingFlow';
 import { CapabilitySetup } from '../features/onboarding/CapabilitySetup';
@@ -342,6 +343,7 @@ export default function App() {
                   )}
                   {view === 'shuiyuan' && <ShuiyuanView />}
                   {view === 'classroom' && <ClassroomView />}
+                  {view === 'old-classroom' && <OldClassroomView />}
                   {view === 'todo' && <TodoView request={todoRequest ?? undefined} />}
                   {view === 'notifications' && (
                     <NotificationsView

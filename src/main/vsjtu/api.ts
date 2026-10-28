@@ -1,6 +1,6 @@
 import { setTimeout as delay } from 'node:timers/promises';
 import { z } from 'zod';
-import type { ClassroomVideo, VideoCourse, VideoTranscript } from '../../shared/vsjtu';
+import type { ClassroomVideo, VideoCourse, VideoTerm, VideoTranscript } from '../../shared/vsjtu';
 import {
   CampusAuthError,
   campusRequest,
@@ -29,6 +29,8 @@ const identityOptions = { ...requestOptions, loginStatus: 500 };
 const object = z.record(z.string(), z.unknown());
 const id = z.coerce.number().int().positive();
 const requests = new Map<string, Promise<unknown>>();
+/** 录像分片只放行交大视频已知的媒体域名（往期录像在 videos 域，当前学期在 live 域）。 */
+const MEDIA_HOSTS = new Set(['live.sjtu.edu.cn', 'videos.sjtu.edu.cn']);
 
 function requestJson(url: string, key = url): Promise<unknown> {
   const pending = requests.get(key);
@@ -156,17 +158,55 @@ async function allPages(path: string, params: Record<string, string>): Promise<u
   }
 }
 
-export async function listCourses(): Promise<VideoCourse[]> {
-  await checkVideoLogin();
+const termSchema = z.object({
+  id,
+  acyeCode: z.string().optional(),
+  acteTerm: z.coerce.number().int().positive().optional(),
+  currentTerm: z.boolean().optional(),
+});
+
+async function fetchTerms() {
   const termResponse = await requestJson(`${BASE}/list/termYear`);
-  const terms = z
-    .array(z.object({ id, currentTerm: z.boolean().optional() }))
+  const parsed = z
+    .array(termSchema)
     .safeParse(Array.isArray(termResponse) ? termResponse : unwrap(termResponse));
-  if (!terms.success) throw new Error('交大视频学期数据格式已变化');
-  const term = terms.data.find((value) => value.currentTerm) ?? terms.data.at(-1);
-  if (!term) return [];
+  if (!parsed.success) throw new Error('交大视频学期数据格式已变化');
+  return parsed.data;
+}
+
+/** 交大学年学期序号：1=秋季、2=春季、3=夏季小学期；命名与 Canvas 的 term.name 对齐。 */
+const TERM_SEASONS: Record<number, string> = { 1: 'Fall', 2: 'Spring', 3: 'Summer' };
+
+function termName(term: z.infer<typeof termSchema>): string {
+  if (!term.acyeCode || !term.acteTerm) return `学期 ${term.id}`;
+  const season = TERM_SEASONS[term.acteTerm];
+  return season ? `${term.acyeCode} ${season}` : `${term.acyeCode} 第${term.acteTerm}学期`;
+}
+
+export async function listTerms(): Promise<VideoTerm[]> {
+  await checkVideoLogin();
+  return (await fetchTerms()).map((term) => ({
+    id: term.id,
+    name: termName(term),
+    current: Boolean(term.currentTerm),
+  }));
+}
+
+/**
+ * 列出某个学期的课堂视频课程；省略 termId 时与旧行为一致，取当前学期。
+ * 课表接口为空时回退到官网「我的课程」点播列表，并按同一个学期过滤。
+ */
+export async function listCourses(termId?: number): Promise<VideoCourse[]> {
+  await checkVideoLogin();
+  let acteId = termId;
+  if (acteId === undefined) {
+    const terms = await fetchTerms();
+    const term = terms.find((value) => value.currentTerm) ?? terms.at(-1);
+    if (!term) return [];
+    acteId = term.id;
+  }
   let records = await allPages('myself/curriculum', {
-    acteId: String(term.id),
+    acteId: String(acteId),
     courBeginTime: '',
     courEndTime: '',
   });
@@ -180,7 +220,7 @@ export async function listCourses(): Promise<VideoCourse[]> {
     ).filter((raw) => {
       const course = z.object({ acteId: id }).safeParse(raw);
       if (!course.success) throw new Error('交大视频课程学期数据格式已变化');
-      return course.data.acteId === term.id;
+      return course.data.acteId === acteId;
     });
   const courses = new Map<number, VideoCourse>();
   for (const raw of records) {
@@ -245,7 +285,7 @@ export function parseStreams(
     const url = new URL(stream.url);
     if (
       url.protocol !== 'https:' ||
-      url.hostname !== 'live.sjtu.edu.cn' ||
+      !MEDIA_HOSTS.has(url.hostname) ||
       (url.port && url.port !== '443') ||
       url.username ||
       url.password ||

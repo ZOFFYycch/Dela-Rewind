@@ -112,7 +112,7 @@ it('快照还没到手时不渲染任何东西（浏览器预览没有 preload �
   expect(container.textContent).toBe('');
 });
 
-it('平台尚未提供更新时说明限制，不显示检查、安装或 Windows 下载入口', async () => {
+it('平台尚未提供更新时说明限制，不显示自身的检查、安装或 Windows 下载入口', async () => {
   useUpdateState.setState({
     snapshot: {
       ...readyState,
@@ -123,8 +123,14 @@ it('平台尚未提供更新时说明限制，不显示检查、安装或 Window
     },
   });
   await act(async () => root.render(<UpdateControl />));
-  expect(container.querySelector('[role="status"]')?.textContent).toBeTruthy();
-  expect(container.querySelector('button')).toBeNull();
+  expect(container.textContent).toContain('当前平台暂未提供应用内更新');
+  const labels = [...container.querySelectorAll('button')].map((button) =>
+    button.textContent?.trim(),
+  );
+  expect(labels).not.toContain('检查更新');
+  expect(labels).not.toContain('下载更新');
+  expect(labels).not.toContain('安装更新');
+  expect(labels).toContain('检查上游');
 });
 
 it('常驻显示当前版本，未检查、开发运行这些状态下也不例外', async () => {

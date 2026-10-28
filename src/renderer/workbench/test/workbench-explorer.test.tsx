@@ -408,3 +408,49 @@ it('clicking the blank area targets the project root for new entries', async () 
   await act(async () => blank().click());
   expect(useTreeState.getState().selected).toBe(localProject.id);
 });
+
+// 全部学期开关：打开后历史学期平铺进「课程资料」，归档区不再占位；关闭后恢复"最新学期 + 归档"。
+it('shows every Canvas term in the sources tree when the all-terms toggle is on', async () => {
+  localStorage.removeItem('dela.canvas.all-terms');
+  useWorkspaceStore.setState({
+    canvas: {
+      connected: true,
+      syncedAt: '2026-10-27T00:00:00.000Z',
+      courses: [
+        { id: 1, name: '旧课', term: '2024-2025 Fall', code: 'C1', syncedAt: null, error: null },
+        { id: 2, name: '新课', term: '2025-2026 Fall', code: 'C2', syncedAt: null, error: null },
+      ],
+      items: [],
+    },
+  });
+  await render(null);
+  const labels = () =>
+    [...document.querySelectorAll('[role="treeitem"]')].map((el) => el.getAttribute('aria-label'));
+  const archiveButton = () =>
+    [...document.querySelectorAll('button')].some((el) => el.textContent?.includes('归档'));
+
+  // 默认：主树只有最新学期，归档区在位。
+  expect(labels()).toContain('2025-2026 Fall');
+  expect(labels()).not.toContain('2024-2025 Fall');
+  expect(archiveButton()).toBe(true);
+
+  const toggle = document.querySelector<HTMLElement>('[aria-label="显示全部学期"]')!;
+  await act(async () => toggle.click());
+
+  expect(labels()).toContain('2025-2026 Fall');
+  expect(labels()).toContain('2024-2025 Fall');
+  expect(labels()).toContain('旧课');
+  // 没有手动归档内容时归档区整体隐藏，旧学期不再需要它。
+  expect(archiveButton()).toBe(false);
+  expect(localStorage.getItem('dela.canvas.all-terms')).toBe('1');
+
+  // 关闭：恢复"最新学期 + 归档"的原视图。
+  await act(async () =>
+    document.querySelector<HTMLElement>('[aria-label="仅显示最新学期"]')!.click(),
+  );
+  expect(labels()).not.toContain('2024-2025 Fall');
+  expect(archiveButton()).toBe(true);
+  expect(localStorage.getItem('dela.canvas.all-terms')).toBe('0');
+
+  localStorage.removeItem('dela.canvas.all-terms');
+});

@@ -26,6 +26,7 @@ export function SourcesTree({
   query,
   bySource,
   archived = false,
+  allTerms = false,
   onArchive,
   onLink,
 }: {
@@ -38,6 +39,8 @@ export function SourcesTree({
   query: string;
   bySource: boolean;
   archived?: boolean;
+  /** 主树显示全部学期：主树不再把非最新学期归入归档，归档区也不再承载历史学期。 */
+  allTerms?: boolean;
   /** 课程归档成功后回调（用于展开上层「归档」区）。 */
   onArchive?: () => void;
   onLink: (key: string) => void;
@@ -55,7 +58,12 @@ export function SourcesTree({
   const archivedTerms = new Set(
     terms.filter((term) => term === '未标注学期' || term !== latestTerm),
   );
-  const visibleTerms = terms.filter((term) => archivedTerms.has(term) === archived);
+  // 全部学期模式下主树直接平铺所有学期；归档区只保留用户手动归档的课程。
+  const visibleTerms = allTerms
+    ? archived
+      ? []
+      : terms
+    : terms.filter((term) => archivedTerms.has(term) === archived);
   for (const term of visibleTerms)
     nodes.push({
       id: `term:${term}`,

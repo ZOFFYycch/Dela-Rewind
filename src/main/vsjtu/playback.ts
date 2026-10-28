@@ -4,6 +4,7 @@ import { createHmac, randomBytes, timingSafeEqual } from 'node:crypto';
 import { setTimeout as delay } from 'node:timers/promises';
 import { getCampusSession } from '../campus';
 import { getStreams } from './api';
+import { getOldStreams } from './old';
 
 const URL_TTL_MS = 10 * 60 * 1000;
 const MAX_ENTRIES = 32;
@@ -68,6 +69,28 @@ export async function issuePlayback(videoId: number): Promise<PlaybackStream[]> 
   }));
 }
 
+function oldPlaybackToken(courseId: number, videoId: number): string {
+  return createHmac('sha256', playbackKey)
+    .update(`old:${courseId}:${videoId}`)
+    .digest('hex')
+    .slice(0, 32);
+}
+
+/** 旧版 Canvas 录播的播放入口：videoId 为负数合成 id，courseId 为 Canvas 课程 id。 */
+export async function issueOldPlayback(
+  courseId: number,
+  videoId: number,
+): Promise<PlaybackStream[]> {
+  const streams = await getOldStreams(courseId, videoId);
+  return streams.map((stream) => ({
+    view: stream.view,
+    duration: stream.duration,
+    playbackUrl:
+      `dela-resource://vsjtu-old/video/${courseId}/${videoId}/${stream.view}` +
+      `?t=${oldPlaybackToken(courseId, videoId)}`,
+  }));
+}
+
 // 只透传媒体需要的头；上游 set-cookie 等一律不转发。
 const passHeaders = [
   'content-type',
@@ -78,11 +101,79 @@ const passHeaders = [
   'last-modified',
 ];
 
+function mediaResponse(response: Response, request: Request): Promise<Response> | Response {
+  if (![200, 206, 416].includes(response.status)) {
+    void response.body?.cancel();
+    return new Response(null, { status: 502 });
+  }
+  const headers = new Headers({
+    'cache-control': 'no-store',
+    'content-type': response.headers.get('content-type') ?? 'video/mp4',
+    'x-content-type-options': 'nosniff',
+  });
+  for (const name of passHeaders) {
+    const value = response.headers.get(name);
+    if (value) headers.set(name, value);
+  }
+  if (response.status === 416) headers.set('content-length', '0');
+  if (request.method === 'HEAD' || response.status === 416) void response.body?.cancel();
+  return new Response(request.method === 'HEAD' || response.status === 416 ? null : response.body, {
+    status: response.status,
+    headers,
+  });
+}
+
+async function handleOldMediaRequest(request: Request): Promise<Response> {
+  try {
+    const url = new URL(request.url);
+    const match = /^\/video\/(\d+)\/(-?\d+)\/(\d+)$/.exec(url.pathname);
+    const token = url.searchParams.get('t');
+    const courseId = match ? Number(match[1]) : 0;
+    const videoId = match ? Number(match[2]) : 0;
+    if (
+      url.hostname !== 'vsjtu-old' ||
+      !match ||
+      !token ||
+      !/^[0-9a-f]{32}$/.test(token) ||
+      !timingSafeEqual(Buffer.from(token), Buffer.from(oldPlaybackToken(courseId, videoId)))
+    )
+      return new Response(null, { status: 403 });
+    const view = Number(match[3]);
+    let response: Response | undefined;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      request.signal.throwIfAborted();
+      const list = await getOldStreams(courseId, videoId);
+      const stream = list.find((value) => value.view === view);
+      if (!stream) return new Response(null, { status: 404 });
+      try {
+        response = await fetchUp(stream.url, request, true);
+      } catch (error) {
+        if (request.signal.aborted || attempt === 1) throw error;
+        await delay(250, undefined, { signal: request.signal });
+        continue;
+      }
+      if (attempt === 0 && [408, 500, 502, 503, 504].includes(response.status)) {
+        await response.body?.cancel();
+        await delay(250, undefined, { signal: request.signal });
+        continue;
+      }
+      break;
+    }
+    if (!response) return new Response(null, { status: 502 });
+    return mediaResponse(response, request);
+  } catch (error) {
+    return new Response(null, {
+      status: error instanceof Error && error.name === 'TimeoutError' ? 504 : 502,
+    });
+  }
+}
+
 export async function handleVsjtuMediaRequest(request: Request): Promise<Response> {
   try {
     if (request.method !== 'GET' && request.method !== 'HEAD')
       return new Response(null, { status: 405 });
     const url = new URL(request.url);
+    if (url.hostname === 'vsjtu-old') return handleOldMediaRequest(request);
     const match = /^\/video\/(\d+)\/(\d+)$/.exec(url.pathname);
     const token = url.searchParams.get('t');
     const videoId = match ? Number(match[1]) : 0;
@@ -122,28 +213,7 @@ export async function handleVsjtuMediaRequest(request: Request): Promise<Respons
       break;
     }
     if (!response) return new Response(null, { status: 502 });
-    if (![200, 206, 416].includes(response.status)) {
-      await response.body?.cancel();
-      return new Response(null, { status: 502 });
-    }
-    const headers = new Headers({
-      'cache-control': 'no-store',
-      'content-type': response.headers.get('content-type') ?? 'video/mp4',
-      'x-content-type-options': 'nosniff',
-    });
-    for (const name of passHeaders) {
-      const value = response.headers.get(name);
-      if (value) headers.set(name, value);
-    }
-    if (response.status === 416) headers.set('content-length', '0');
-    if (request.method === 'HEAD' || response.status === 416) await response.body?.cancel();
-    return new Response(
-      request.method === 'HEAD' || response.status === 416 ? null : response.body,
-      {
-        status: response.status,
-        headers,
-      },
-    );
+    return mediaResponse(response, request);
   } catch (error) {
     return new Response(null, {
       status: error instanceof Error && error.name === 'TimeoutError' ? 504 : 502,
@@ -151,7 +221,7 @@ export async function handleVsjtuMediaRequest(request: Request): Promise<Respons
   }
 }
 
-async function fetchUp(target: string, request: Request): Promise<Response> {
+async function fetchUp(target: string, request: Request, legacy = false): Promise<Response> {
   const campus = await getCampusSession();
   const controller = new AbortController();
   const signal = AbortSignal.any([request.signal, controller.signal]);
@@ -161,6 +231,8 @@ async function fetchUp(target: string, request: Request): Promise<Response> {
       NETWORK_TIMEOUT_MS,
     );
   const headers = new Headers();
+  // 旧版录像的签名分片在 videos.sjtu.edu.cn，缺少该 Referer 会被 nginx 以 403 拒绝。
+  if (legacy) headers.set('Referer', 'https://v.sjtu.edu.cn/');
   for (const name of ['range', 'if-range']) {
     const value = request.headers.get(name);
     if (value) headers.set(name, value);

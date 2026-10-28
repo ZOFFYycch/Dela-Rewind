@@ -13,6 +13,7 @@ import {
   Globe,
   GraduationCap,
   KeyRound,
+  Layers,
   Folder,
   PanelLeft,
   Plus,
@@ -41,7 +42,7 @@ import { useRemoteActivity } from '../navigation/remote-activity';
 import { RemoteConnectionTip } from '../navigation/remote-connection-tip';
 import { useRemoteConnections } from '../navigation/remote-connections';
 import { SourcesTree } from '../navigation/SourcesTree';
-import { latestTermOf } from '../../shared/canvas';
+import { compareCanvasTerms, latestTermOf } from '../../shared/canvas';
 import { ancestorChainOf, useNavigationStore as useTreeState } from '../navigation/store';
 import { useNavigationStore as useAppNavigation } from '../navigation/view';
 import {
@@ -65,6 +66,7 @@ const SIDEBAR_MIN_WIDTH = 160;
 /** 目录宽度上界：再宽会明显挤占右侧内容栏。 */
 const SIDEBAR_MAX_WIDTH = 360;
 const widthStorageKey = 'dela.workspace.sidebarWidth';
+const allTermsStorageKey = 'dela.canvas.all-terms';
 
 /** 新建弹窗的目标容器：选中/活动文档所在文件夹，缺省回落到根（旧 currentContainer）。
  *  切换项目后 selected 可能仍指向上一个项目的条目：不属于当前根的一律回落到根，避免建到别的项目里。 */
@@ -136,6 +138,14 @@ export function WorkbenchExplorer({
   // 课程资料只在通用（无项目）工作台显示（承接旧资料页），且默认展开；项目工作台不渲染课程资料。
   const [coursesOpen, setCoursesOpen] = useState(() => projectId === null);
   const [archiveOpen, setArchiveOpen] = useState(false);
+  // 主树默认只铺最新学期；开启后所有学期平铺在「课程资料」下，归档区只留手动归档内容。
+  const [showAllTerms, setShowAllTerms] = useState(() => {
+    try {
+      return localStorage.getItem(allTermsStorageKey) === '1';
+    } catch {
+      return false;
+    }
+  });
   const [syncing, setSyncing] = useState(false);
 
   useEffect(() => {
@@ -160,6 +170,22 @@ export function WorkbenchExplorer({
   }, [narrow, mobileOpen]);
 
   const expand = (id: string, open: boolean) => useTreeState.getState().expand(id, open);
+
+  /** 全部学期开关：打开时展开所有学期目录，关闭时恢复"最新学期 + 归档"的原视图。 */
+  const toggleAllTerms = () => {
+    const next = !showAllTerms;
+    setShowAllTerms(next);
+    try {
+      localStorage.setItem(allTermsStorageKey, next ? '1' : '0');
+    } catch {
+      /* localStorage 不可用时只在本次运行生效。 */
+    }
+    if (!next) return;
+    const terms = [...new Set(canvas.courses.map((course) => course.term))].sort(
+      compareCanvasTerms,
+    );
+    for (const term of terms) expand(`term:${term}`, true);
+  };
   const container = () => currentContainerOf(selected ?? activeDocKey, rootId);
 
   const selectEntry = (id: string) => {
@@ -302,6 +328,11 @@ export function WorkbenchExplorer({
     />
   );
   const sourcesOpen = coursesOpen || Boolean(query.trim());
+  // 全部学期模式下历史学期已平铺进主树；归档区只剩手动归档的课程/条目，两类都空时不占位。
+  const showArchive =
+    !showAllTerms ||
+    canvas.courses.some((course) => course.archived) ||
+    entries.some((entry) => entry.parentId === workspaceArchiveId);
 
   return (
     <>
@@ -533,6 +564,18 @@ export function WorkbenchExplorer({
                     >
                       <RefreshCw className={cn(syncing && 'animate-spin')} />
                     </Button>
+                    <Button
+                      aria-label={showAllTerms ? '仅显示最新学期' : '显示全部学期'}
+                      aria-pressed={showAllTerms}
+                      className="hover:bg-hover-2 aria-pressed:bg-hover-2 aria-pressed:text-ink"
+                      disabled={!canvas.connected}
+                      onClick={toggleAllTerms}
+                      size="icon-xs"
+                      title={showAllTerms ? '仅显示最新学期' : '显示全部学期'}
+                      variant="ghost"
+                    >
+                      <Layers />
+                    </Button>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button
@@ -572,6 +615,7 @@ export function WorkbenchExplorer({
                   {sourcesOpen &&
                     (canvas.connected ? (
                       <SourcesTree
+                        allTerms={showAllTerms}
                         bySource={bySource}
                         expanded={expanded}
                         onArchive={() => setArchiveOpen(true)}
@@ -620,55 +664,59 @@ export function WorkbenchExplorer({
             </div>
             {/* 归档固定在侧栏最底部：不随上方滚动区滚动（flex 收尾自然贴底）；与滚动区之间
                 用一条极淡 hairline 分界（三区背景层次保持不变，此处作为固定底区的分界）；
-                展开后的两棵 archived 树整体限高滚动，避免撑爆侧栏。 */}
-            <div className="shrink-0 border-t border-line">
-              <button
-                aria-expanded={archiveOpen || Boolean(query.trim())}
-                className={cn(
-                  sectionClass,
-                  'w-full transition-colors duration-150 hover:text-ink-2',
+                展开后的两棵 archived 树整体限高滚动，避免撑爆侧栏。
+                全部学期模式下历史学期已平铺，只有手动归档内容时才需要这个区块。 */}
+            {showArchive && (
+              <div className="shrink-0 border-t border-line">
+                <button
+                  aria-expanded={archiveOpen || Boolean(query.trim())}
+                  className={cn(
+                    sectionClass,
+                    'w-full transition-colors duration-150 hover:text-ink-2',
+                  )}
+                  onClick={() => setArchiveOpen((value) => !value)}
+                  type="button"
+                >
+                  {chevron(archiveOpen || Boolean(query.trim()))}
+                  <Archive className="size-4" />
+                  归档
+                </button>
+                {(archiveOpen || query.trim()) && (
+                  <div className="max-h-56 overflow-y-auto pb-1">
+                    {projectId === null && (
+                      <SourcesTree
+                        allTerms={showAllTerms}
+                        archived
+                        bySource={bySource}
+                        expanded={expanded}
+                        onExpand={expand}
+                        onLink={(id) => onAction('link', id)}
+                        onOpen={onOpenDocument}
+                        onOpenToSide={onOpenToSide}
+                        query={query}
+                        selected={activeDocKey}
+                      />
+                    )}
+                    {visible && (
+                      <ProjectFileTree
+                        archived
+                        canDrop={(dragId, targetId) => !isDescendant(entries, targetId, dragId)}
+                        entries={entries}
+                        expanded={expanded}
+                        onAction={treeAction}
+                        onExpand={expand}
+                        onMove={move}
+                        onOpenToSide={openToSide}
+                        onSelect={selectEntry}
+                        query={query}
+                        rootId={workspaceArchiveId}
+                        selected={activeDocKey ?? selected}
+                      />
+                    )}
+                  </div>
                 )}
-                onClick={() => setArchiveOpen((value) => !value)}
-                type="button"
-              >
-                {chevron(archiveOpen || Boolean(query.trim()))}
-                <Archive className="size-4" />
-                归档
-              </button>
-              {(archiveOpen || query.trim()) && (
-                <div className="max-h-56 overflow-y-auto pb-1">
-                  {projectId === null && (
-                    <SourcesTree
-                      archived
-                      bySource={bySource}
-                      expanded={expanded}
-                      onExpand={expand}
-                      onLink={(id) => onAction('link', id)}
-                      onOpen={onOpenDocument}
-                      onOpenToSide={onOpenToSide}
-                      query={query}
-                      selected={activeDocKey}
-                    />
-                  )}
-                  {visible && (
-                    <ProjectFileTree
-                      archived
-                      canDrop={(dragId, targetId) => !isDescendant(entries, targetId, dragId)}
-                      entries={entries}
-                      expanded={expanded}
-                      onAction={treeAction}
-                      onExpand={expand}
-                      onMove={move}
-                      onOpenToSide={openToSide}
-                      onSelect={selectEntry}
-                      query={query}
-                      rootId={workspaceArchiveId}
-                      selected={activeDocKey ?? selected}
-                    />
-                  )}
-                </div>
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </aside>
