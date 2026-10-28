@@ -1,16 +1,10 @@
 # Dela Rewind
 
-<div align="center">
-
-**An unofficial fork of Dela, focused on past-semester browsing and legacy classroom recordings.**
-
-Base: upstream Dela 2.2.2 · [Upstream repository](https://github.com/Chang-Yo/Dela)
-
-</div>
+> Dela 的非官方修改版：方便急需跨学期查看课程资料与视频，尤其是旧版课堂视频。  
+> 与上游 Dela 使用相同版本号。
 
 > [!NOTE]
-> 这不是官方 Dela 发布。Dela Rewind 基于上游最新代码，重点增加：往期学期浏览、旧版课堂录像入口、Canvas 资料显示全部学期。  
-> 中文说明：它不是“旧版本的 Dela”，而是“能回看旧内容的 Dela 修改版”。
+> 运行安装程序会被视为对官方 Dela 的更新，从而覆盖安装；因此 Dela Rewind 与官方 Dela 不能同时存在。
 
 ---
 
@@ -128,3 +122,7 @@ pnpm dev
     </td>
   </tr>
 </table>
+
+---
+
+修改记录见 [CHANGELOG-Rewind.md](CHANGELOG-Rewind.md)。
