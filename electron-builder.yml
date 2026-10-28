@@ -1,5 +1,5 @@
 appId: io.dela.desktop
-productName: Dela
+productName: Dela Rewind
 artifactName: '${productName}-${version}-${os}-${arch}.${ext}'
 icon: assets/Dela_white_bg.png
 asar: true

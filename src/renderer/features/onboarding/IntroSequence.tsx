@@ -100,7 +100,7 @@ export function IntroSequence({ onStart }: { onStart: () => void }) {
 
           <div className="relative flex flex-col items-center">
             <motion.img
-              alt="Dela"
+              alt="Dela Rewind"
               animate={{ opacity: 1, y: 0 }}
               className="size-[11.25rem] [@media(max-height:560px)]:size-[8.25rem]"
               initial={reduced ? false : { opacity: 0, y: 14 }}

@@ -14,7 +14,6 @@ Base: upstream Dela 2.2.2 · [Upstream repository](https://github.com/Chang-Yo/D
 
 ---
 
-
 > [!IMPORTANT]
 > 下载、安装或使用 Dela，即视为你已阅读并同意本项目的[使用条款](docs/terms.md)与[隐私条款](docs/privacy.md)。
 > 如果你不同意其中部分内容，可以跳过对应服务的配置、不提供该项凭据，从而仅使用其余功能；如果你不同意全部条款，请停止使用并卸载本软件。

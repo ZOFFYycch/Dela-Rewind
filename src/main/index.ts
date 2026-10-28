@@ -160,7 +160,7 @@ app
       Menu.setApplicationMenu(
         Menu.buildFromTemplate([
           {
-            label: 'Dela',
+            label: 'Dela Rewind',
             submenu: [
               { role: 'about' },
               { label: '设置…', click: action('open-settings') },
@@ -335,7 +335,7 @@ async function createWindow(): Promise<void> {
       defaultId: 1,
       cancelId: 1,
       title: '仍有未保存的内容',
-      message: '有未保存的笔记或未发送的邮件，确定抛弃并退出 Dela 吗？',
+      message: '有未保存的笔记或未发送的邮件，确定抛弃并退出 Dela Rewind 吗？',
     });
     if (choice === 0) {
       quitting = wasQuitting;
@@ -441,7 +441,7 @@ function createTray(window: BrowserWindow): void {
     .createFromPath(join(app.getAppPath(), 'assets', `Dela_${savedIcon()}_bg.png`))
     .resize({ width: 16, height: 16 });
   tray = new Tray(icon);
-  tray.setToolTip('Dela');
+  tray.setToolTip('Dela Rewind');
   tray.setContextMenu(
     Menu.buildFromTemplate([
       { label: '打开主窗口', click: () => showMainWindow(window) },
