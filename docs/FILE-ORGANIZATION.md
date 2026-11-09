@@ -72,22 +72,24 @@ src\
 
 ### 源码构建
 
-| 路径                                             | 说明                                 | 是否可删          |
-| ------------------------------------------------ | ------------------------------------ | ----------------- |
-| `Dela-Rewind\out\`                               | Vite 生成的 main/preload/renderer 包 | 可重新生成        |
-| `Dela-Rewind\dist\win-unpacked\`                 | 免安装程序目录                       | 可重新生成        |
-| `Dela-Rewind\dist\Dela-Rewind-2.2.2-win-x64.exe` | NSIS 安装包                          | 对应 Release 资产 |
-| `Dela-Rewind\dist\...blockmap`                   | 差分更新 blockmap                    | 发布资产          |
-| `Dela-Rewind\dist\latest.yml`                    | electron-updater 更新元数据          | 发布资产          |
-| `Dela-Rewind\dist\...sha256.txt`                 | 安装包校验文件                       | 发布资产          |
+| 路径                                                 | 说明                                 | 是否可删          |
+| ---------------------------------------------------- | ------------------------------------ | ----------------- |
+| `Dela-Rewind\out\`                                   | Vite 生成的 main/preload/renderer 包 | 可重新生成        |
+| `Dela-Rewind\dist\win-unpacked\`                     | 免安装程序目录                       | 可重新生成        |
+| `Dela-Rewind\dist\Dela-Rewind-<version>-win-x64.exe` | NSIS 安装包                          | 对应 Release 资产 |
+| `Dela-Rewind\dist\...blockmap`                       | 差分更新 blockmap                    | 发布资产          |
+| `Dela-Rewind\dist\latest.yml`                        | electron-updater 更新元数据          | 发布资产          |
+| `Dela-Rewind\dist\...sha256.txt`                     | 安装包校验文件                       | 发布资产          |
 
 ### 当前本机安装/测试
 
 | 路径                                | 版本/状态           | 说明                                               |
 | ----------------------------------- | ------------------- | -------------------------------------------------- |
 | `F:\Tool\Download\Dela Rewind`      | 2.2.2，NSIS 安装    | 早先的正式安装版，**不包含**最新层级/教师改动      |
-| `F:\Tool\Download\Dela-Rewind-Test` | 2.2.2，win-unpacked | 最新测试版，直接运行 `Dela Rewind.exe`             |
+| `F:\Tool\Download\Dela-Rewind-Test` | 2.4.0，win-unpacked | 最新测试版，直接运行 `Dela Rewind.exe`             |
 | `F:\Tool\Download\Dela`             | **当前不存在**      | 原官方 Dela 目录；安装 Dela Rewind 后已被覆盖/替换 |
+
+测试版规则：`Dela-Rewind-Test` 永远只保留**最新一次构建**；升级版本时直接覆盖，不创建 `Dela-Rewind-2.4.0-Test` 之类的版本目录，避免测到旧包。
 
 命名注意：安装目录是 `Dela Rewind`（空格），测试目录是 `Dela-Rewind-Test`（连字符）；不要混用。
 
@@ -107,6 +109,33 @@ pnpm smoke
 ```
 
 `electron-builder` 需要联网下载/校验 `winCodeSign`、NSIS 等构建工具；代理关闭时可能打包失败。缓存通常在 `%LOCALAPPDATA%\electron-builder\Cache`。
+
+### Electron 运行时缓存与镜像
+
+- Electron 运行时按版本存放，不能把 2.2.2 的 `node_modules/electron/dist` 直接给 2.4.0 用；
+- 同一版本可以复用缓存，不同版本必须下载对应的 zip；
+- 下载缓存：`%LOCALAPPDATA%\electron\Cache`；
+- 国内加速：
+
+```powershell
+$env:ELECTRON_MIRROR='https://npmmirror.com/mirrors/electron/'
+pnpm exec install-electron
+```
+
+- `install-electron` 默认没有进度输出，看起来像卡住；zip 约 150MB，下载完成后才会返回；
+- `pnpm` 依赖包缓存与 Electron 运行时缓存分开，二者都可能被不同项目复用。
+
+### 测试环境的 Git Bash
+
+`src/main/terminal/index.ts` 查找 Bash 的顺序是：
+
+1. `%ProgramFiles%\Git\bin\bash.exe`
+2. `%ProgramFiles(x86)%\Git\bin\bash.exe`
+3. `%LOCALAPPDATA%\Programs\Git\bin\bash.exe`
+4. 随包 MinGit
+5. 应用内安装的 MinGit
+
+它**不会扫描 PATH**。所以即使电脑里安装了 Git Bash，只要不在上述位置，测试仍会报“未找到 Git Bash”。本机 Git 在 `F:\Base\Git`，不在默认位置，因此全量测试里依赖 Bash 的用例会失败；应用正式运行时应使用随包 MinGit，或在终端页一键安装 Dela 运行时。若要跑这些测试，应把 Git for Windows 安装到默认 `Program Files`，或使用应用内 MinGit；不要依赖修改 PATH。
 
 ## 5. GitHub / 网上位置
 

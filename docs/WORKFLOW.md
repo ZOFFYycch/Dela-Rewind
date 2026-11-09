@@ -158,6 +158,36 @@ pnpm package:dir
 - 缓存位置：`%LOCALAPPDATA%\electron-builder\Cache`；
 - 打包失败先看是网络还是代码错误，不要反复盲重试。
 
+### 5.4.1 Electron 运行时与镜像
+
+- Electron 版本随 `package.json` 固定；每个版本需要自己的运行时；
+- `node_modules/electron/dist` 不能跨版本复制，例如 44.9.3 不能直接给 44.10.1；
+- 相同版本的 zip 可以复用，不同版本必须重新下载；
+- 下载缓存：`%LOCALAPPDATA%\electron\Cache`；
+- 国内镜像：
+
+```powershell
+$env:ELECTRON_MIRROR='https://npmmirror.com/mirrors/electron/'
+pnpm exec install-electron
+```
+
+- 该命令没有进度条，约 150MB，下载期间看起来像“卡住”，完成后才返回；
+- 2.2.2 之所以快，是因为 Electron 44.9.3 已经装好；2.4.0 换到 44.10.1，需要重新下载一次。
+- `pnpm install` 的依赖缓存和 Electron 运行时缓存是两套，不能混为一谈。
+
+### 5.4.2 测试环境的 Git Bash
+
+`locateBash()` 只检查：
+
+1. `%ProgramFiles%\Git\bin\bash.exe`
+2. `%ProgramFiles(x86)%\Git\bin\bash.exe`
+3. `%LOCALAPPDATA%\Programs\Git\bin\bash.exe`
+4. 随包 MinGit
+5. 应用内安装的 MinGit
+
+**不扫描 PATH**。所以“电脑里有 Git Bash”不等于测试能找到它。  
+本机 Git 在 `F:\Base\Git`，不在默认位置，因此全量测试里依赖 Bash 的用例会失败；应用正式运行时优先使用随包 MinGit，或在终端页一键安装 Dela 运行时。若要跑这些测试，应把 Git for Windows 安装到默认 `Program Files`，或使用应用内 MinGit；不要依赖修改 PATH。
+
 ### 5.5 测试版验收
 
 把新的 `win-unpacked` 复制到：
@@ -165,6 +195,9 @@ pnpm package:dir
 ```text
 F:\Tool\Download\Dela-Rewind-Test
 ```
+
+规则：**这个目录永远只放最新测试版，直接覆盖旧版本**。  
+不要创建 `Dela-Rewind-2.4.0-Test` 之类的版本目录，否则很容易打开旧包。
 
 由人类实际打开检查：
 
