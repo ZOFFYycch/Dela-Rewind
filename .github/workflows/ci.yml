@@ -2,9 +2,9 @@ name: CI
 
 on:
   pull_request:
-    types: [opened, synchronize, reopened, edited]
+    types: [opened, synchronize, reopened]
   push:
-    branches: [dev, main]
+    branches: [main]
 
 permissions:
   contents: read
@@ -36,7 +36,7 @@ jobs:
       - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         id: filter
         with:
-          base: ${{ github.event_name == 'push' && github.ref || '' }}
+          base: ${{ github.ref }}
           filters: |
             workflows:
               - '.github/workflows/**'
