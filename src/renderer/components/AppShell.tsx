@@ -425,6 +425,12 @@ export function AppShell({
               <PanelLeftClose className="size-4" strokeWidth={1.8} />
             )}
           </button>
+          {!narrow && sidebarCollapsed && (
+            <div className="[-webkit-app-region:no-drag] ml-2 flex h-full items-center gap-1.5">
+              <DelaBrand className="h-[1.125rem] w-auto" />
+              <span className="text-15 font-semibold tracking-tight text-ink">Dela Rewind</span>
+            </div>
+          )}
           <button
             aria-label="后退"
             className={cn(chromeIconButton, '[-webkit-app-region:no-drag] ml-1.5')}
@@ -700,7 +706,7 @@ export function AppShell({
           <div className="flex h-11 shrink-0 items-center gap-1.5 px-1">
             {/* 纯品牌展示；回首页由下方「首页」行承担，避免相邻双入口。 */}
             <div className="flex min-w-0 items-center gap-2 px-1 py-0.5">
-              <DelaBrand className="h-[1.125rem] w-auto" />
+              <DelaBrand alt="Dela Rewind" className="h-[1.125rem] w-auto" />
               <span
                 className={cn(
                   'text-15 font-semibold tracking-tight text-ink',
@@ -708,7 +714,7 @@ export function AppShell({
                   sidebarCollapsed && 'opacity-0',
                 )}
               >
-                Dela
+                Dela Rewind
               </span>
             </div>
             <div className="flex-1" />
@@ -760,7 +766,11 @@ export function AppShell({
           </div>
           <ProjectSessionNav
             activeBusinessId={
-              view === 'mail' || view === 'timetable' || view === 'classroom' || view === 'shuiyuan'
+              view === 'mail' ||
+              view === 'timetable' ||
+              view === 'classroom' ||
+              view === 'old-classroom' ||
+              view === 'shuiyuan'
                 ? view
                 : null
             }

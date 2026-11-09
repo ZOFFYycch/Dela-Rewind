@@ -12,11 +12,32 @@ import { lectureMeta, lectureTitle } from './player-format';
 import { useClassroom } from './store';
 
 export function CoursePicker() {
+  const terms = useClassroom((state) => state.terms);
+  const selectedTermId = useClassroom((state) => state.selectedTermId);
+  const selectTerm = useClassroom((state) => state.selectTerm);
   const courses = useClassroom((state) => state.courses);
   const selectedCourseId = useClassroom((state) => state.selectedCourseId);
   const selectCourse = useClassroom((state) => state.selectCourse);
   return (
-    <div className="px-3 pb-3 pt-2">
+    <div className="grid gap-2 px-3 pb-3 pt-2">
+      {/* 沿用官网的完整学期列表：往期录像与当前学期共用同一套课程/节次视图。 */}
+      <Select
+        value={selectedTermId === null ? '' : String(selectedTermId)}
+        onValueChange={(value) => selectTerm(Number(value))}
+        disabled={terms.length === 0}
+      >
+        <SelectTrigger aria-label="学年学期" className="w-full">
+          <SelectValue placeholder={terms.length === 0 ? '暂无学期' : '选择学年学期'} />
+        </SelectTrigger>
+        <SelectContent className="w-(--radix-select-trigger-width)">
+          {terms.map((term) => (
+            <SelectItem key={term.id} value={String(term.id)}>
+              {term.name}
+              {term.current ? '（当前）' : ''}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       <Select
         value={selectedCourseId === null ? '' : String(selectedCourseId)}
         onValueChange={(value) => selectCourse(Number(value))}
@@ -47,7 +68,12 @@ export function CourseList() {
   const error = useClassroom((state) => state.videosError[state.selectedCourseId ?? -1]);
   const ensureVideos = useClassroom((state) => state.ensureVideos);
   if (!course)
-    return <p className="px-3 py-6 text-center text-xs text-ink-3">本学期暂无课堂录像课程</p>;
+    return (
+      <div className="px-3 py-6 text-center text-xs text-ink-3">
+        <p>该学期暂无课堂录像课程</p>
+        <p className="mt-1 text-ink-3/70">交大视频没有该学期的课程或录像数据</p>
+      </div>
+    );
   return (
     <nav aria-label="节次" className="flex flex-col gap-1 px-2 pb-2">
       {loading && !videos ? (

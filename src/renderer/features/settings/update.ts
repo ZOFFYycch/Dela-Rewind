@@ -29,10 +29,10 @@ export interface UpdateView {
 const REASON_STATUS: Record<UpdateReason, string> = {
   'not-packaged': '开发运行不支持应用内更新',
   'platform-unsupported': '当前平台暂未提供应用内更新',
-  'feed-unavailable': '暂时无法获取更新信息，请稍后重试',
-  'invalid-update': '更新文件校验失败，请重新下载',
-  cancelled: '已取消',
-  failed: '更新失败',
+  'feed-unavailable': '检查更新失败：网络或更新源不可用',
+  'invalid-update': '检查更新失败：更新信息校验失败',
+  cancelled: '检查已取消',
+  failed: '检查更新失败：请稍后重试',
 };
 
 function failureAction(
@@ -42,7 +42,8 @@ function failureAction(
   if (reason === 'not-packaged' || reason === 'platform-unsupported')
     return { action: null, label: null };
   if (failedAt === 'install') return { action: 'open-download', label: '下载安装包' };
-  return { action: failedAt ?? 'check', label: '重试' };
+  if (failedAt === 'download') return { action: 'download', label: '下载更新' };
+  return { action: 'check', label: '检查更新' };
 }
 
 export function updateView(state: UpdateSnapshot): UpdateView {
@@ -52,7 +53,12 @@ export function updateView(state: UpdateSnapshot): UpdateView {
     case 'checking':
       return { status: '正在检查…', action: null, label: null, progress: null };
     case 'up-to-date':
-      return { status: '已是最新版本', action: 'check', label: '再检查一次', progress: null };
+      return {
+        status: '已是最新版本，无需更新',
+        action: 'check',
+        label: '检查更新',
+        progress: null,
+      };
     case 'available':
       return {
         status: state.version ? `有新版本 ${state.version}` : '有新版本',
@@ -87,8 +93,10 @@ export function updateView(state: UpdateSnapshot): UpdateView {
       return {
         status:
           state.failedAt === 'install'
-            ? '无法启动安装向导，请下载安装包后手动安装'
-            : REASON_STATUS[reason],
+            ? '安装更新失败：请下载安装包后手动安装'
+            : state.failedAt === 'download'
+              ? '下载更新失败：请检查网络后重试'
+              : REASON_STATUS[reason],
         ...failureAction(reason, state.failedAt),
         progress: null,
       };

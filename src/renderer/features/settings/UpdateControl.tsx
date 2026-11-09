@@ -1,9 +1,10 @@
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, RefreshCw } from 'lucide-react';
 import { Button } from '../../components/ui/button';
 import { DownloadProgressRow } from '../../components/download-progress';
 import { SettingRow } from './SettingRow';
 import { SettingsGroup } from './SettingsGroup';
 import { useUpdateState, runUpdateAction, updateView } from './update';
+import { UpstreamUpdateRow } from './UpstreamUpdateRow';
 
 /**
  * 通用 › 软件更新。状态由主进程持有、经 update:state 广播，这里只读共享 store（标题栏提示读同一份）
@@ -15,9 +16,11 @@ export function UpdateControl() {
   if (!state) return null;
   const view = updateView(state);
   const action = view.action;
+  const checking = state.phase === 'checking';
 
   return (
     <SettingsGroup settingId="app-update">
+      <UpstreamUpdateRow />
       <SettingRow
         // 当前版本常驻：只报「已是最新」而不说自己是哪一版，用户没法判断有没有升上去。
         // 第二行才是当前进展，role=status 让读屏在检查与下载途中播报变化。
@@ -28,7 +31,7 @@ export function UpdateControl() {
           </span>
         }
         settingId="check-update"
-        title="软件更新"
+        title="Dela Rewind 更新"
       >
         {view.progress !== null ? (
           <DownloadProgressRow
@@ -38,7 +41,14 @@ export function UpdateControl() {
             total={state.total}
           />
         ) : null}
-        {action && view.label ? (
+        {checking ? (
+          <span className="flex items-center gap-2">
+            <RefreshCw className="size-4 animate-spin text-ink-3" />
+            <Button disabled size="sm" variant="secondary">
+              检查更新
+            </Button>
+          </span>
+        ) : action && view.label ? (
           <Button
             onClick={() => {
               if (action === 'install') useUpdateState.setState({ dismissedVersion: null });

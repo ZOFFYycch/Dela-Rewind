@@ -2,12 +2,17 @@ import type { VsjtuApi, VideoDownload } from '../shared/vsjtu';
 import { invoke, on } from './lib';
 export const vsjtu = {
   connect: () => invoke('vsjtu:connect'),
-  listCourses: () => invoke('vsjtu:list-courses'),
+  listTerms: () => invoke('vsjtu:list-terms'),
+  listCourses: (termId?: number) => invoke('vsjtu:list-courses', termId),
   listVideos: (id: number) => invoke('vsjtu:list-videos', id),
+  oldVideos: (courseId: number) => invoke('vsjtu:old-videos', courseId),
   streams: (id: number) => invoke('vsjtu:streams', id),
+  oldStreams: (courseId: number, videoId: number) => invoke('vsjtu:old-streams', courseId, videoId),
   transcript: (id: number) => invoke('vsjtu:transcript', id),
   exportTranscript: (id: number, title: string) => invoke('vsjtu:export-transcript', id, title),
   download: (id: number, view: number, name: string) => invoke('vsjtu:download', id, view, name),
+  downloadOld: (courseId: number, videoId: number, view: number, name: string) =>
+    invoke('vsjtu:download-old', courseId, videoId, view, name),
   downloads: () => invoke('vsjtu:downloads'),
   cancelDownload: (id: string) => invoke('vsjtu:cancel-download', id),
   revealDownload: (id: string) => invoke('vsjtu:reveal-download', id),

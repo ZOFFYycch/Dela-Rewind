@@ -121,7 +121,7 @@ function DesktopClassroomView() {
                   onToggle={toggleSidebar}
                 />
                 <span className="min-w-0 flex-1 truncate text-xs font-medium text-ink-2">
-                  课堂视频
+                  新版课堂视频
                 </span>
                 <div className="flex shrink-0 items-center gap-0.5">
                   {/* 连接不稳定时的主动出口：重开官方窗口登录并刷新课程。失败原因由 store 弹 toast。 */}
@@ -164,12 +164,12 @@ function DesktopClassroomView() {
                 />
               </div>
               <div className="flex min-h-0 flex-1 flex-col" id="classroom-courses">
-                {sidebarTab === '节次' ? (
+                {sidebarTab === '语音' ? (
+                  <TranscriptPanel />
+                ) : (
                   <div className="min-h-0 flex-1 overflow-y-auto">
                     <CourseList />
                   </div>
-                ) : (
-                  <TranscriptPanel />
                 )}
               </div>
             </div>

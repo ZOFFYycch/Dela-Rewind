@@ -149,8 +149,7 @@ it.each([
     const url = new URL(server.urls[3]!);
     expect(url.searchParams.get('acteId')).toBe('11');
     expect(url.searchParams.get('page.pageIndex')).toBe('2');
-    expect(server.urls).toHaveLength(5);
-    expect(server.urls.at(-1)).toContain('group_subject_vod_list/t-1');
+    expect(server.urls).toHaveLength(4);
   },
 );
 
@@ -232,24 +231,11 @@ describe('on-demand course list', () => {
     ];
   });
 
-  it('merges on-demand courses into a nonempty timetable without merging same-name classes', async () => {
+  it('keeps the timetable-only result when it is nonempty', async () => {
     const course = { acteId: 11, teclId: 9000, subjCode: 'PHYS', subjName: '大学物理' };
     server.replies[2] = { ok: true, data: { records: [course], pageCount: 1 } };
-    server.replies.push({
-      ok: true,
-      data: {
-        records: [
-          { ...course, teclId: '9000' },
-          { ...course, teclId: 9001 },
-          { ...course, acteId: 10, teclId: 8999 },
-          { ...course, acteId: 12, teclId: 9002 },
-        ],
-        pageCount: 1,
-      },
-    });
     await expect(listCourses()).resolves.toEqual([
       { id: 9000, code: 'PHYS', name: '大学物理' },
-      { id: 9001, code: 'PHYS', name: '大学物理' },
     ]);
   });
 

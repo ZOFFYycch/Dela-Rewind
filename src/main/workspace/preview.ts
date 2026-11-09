@@ -161,8 +161,10 @@ export function registerPreviewProtocol(): void {
       if (url.hostname === 'shuiyuan') return handleShuiyuanMediaRequest(request);
       // 水源快照图片：dela-resource://shuiyuan-snapshot/<topicId>/<hash>.<ext>。
       if (url.hostname === 'shuiyuan-snapshot') return await handleShuiyuanSnapshotRequest(url);
-      // 课堂视频播放：dela-resource://vsjtu/video/<videoId>/<view>?t=<token>（Range 透传）。
-      if (url.hostname === 'vsjtu') return handleVsjtuMediaRequest(request);
+      // 课堂视频播放：dela-resource://vsjtu/video/<videoId>/<view>?t=<token>（Range 透传）；
+      // 旧版录播用 vsjtu-old 主机名，共用同一个代理入口。
+      if (url.hostname === 'vsjtu' || url.hostname === 'vsjtu-old')
+        return handleVsjtuMediaRequest(request);
       // 远端文档：dela-resource://remote/<projectId>?path=<远端绝对路径>（PDF/Office 按 Range 分块拉）；
       // remote-raw 同一实现，供 Markdown 里的相对图片取字节（都只放行项目根目录内的路径）。
       if (url.hostname === 'remote' || url.hostname === 'remote-raw') {

@@ -5,7 +5,7 @@ import { AnimatePresence, MotionConfig, motion } from 'framer-motion';
 import { AppShell } from '../components/AppShell';
 import { ErrorBoundary } from '../components/ErrorBoundary';
 import { MailView } from '../features/mail';
-import { ClassroomView } from '../features/classroom';
+import { ClassroomHub } from '../features/classroom/ClassroomHub';
 import { CompletionOverlay } from '../features/onboarding/CompletionOverlay';
 import { OnboardingFlow } from '../features/onboarding/OnboardingFlow';
 import { CapabilitySetup } from '../features/onboarding/CapabilitySetup';
@@ -344,7 +344,7 @@ export default function App() {
                     />
                   )}
                   {view === 'shuiyuan' && <ShuiyuanView />}
-                  {view === 'classroom' && <ClassroomView />}
+                  {view === 'classroom' && <ClassroomHub />}
                   {view === 'todo' && <TodoView request={todoRequest ?? undefined} />}
                   {view === 'notifications' && (
                     <NotificationsView

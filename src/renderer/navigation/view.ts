@@ -17,6 +17,7 @@ export type AppView =
   | 'mail'
   | 'timetable'
   | 'classroom'
+  | 'old-classroom'
   | 'shuiyuan'
   | 'todo'
   | 'notifications'

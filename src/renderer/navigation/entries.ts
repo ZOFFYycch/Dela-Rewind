@@ -6,7 +6,8 @@ import { persist } from 'zustand/middleware';
 import { ShuiyuanIcon } from '../components/ui/shuiyuan-icon';
 import { useExperimentEnabled } from '../features/settings/experimental';
 
-export type NavEntryId = 'sources' | 'mail' | 'timetable' | 'classroom' | 'shuiyuan';
+export type NavEntryId =
+  'sources' | 'mail' | 'timetable' | 'classroom' | 'old-classroom' | 'shuiyuan';
 
 export const navEntries: Array<{
   id: NavEntryId;

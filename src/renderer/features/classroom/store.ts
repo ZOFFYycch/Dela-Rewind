@@ -1,5 +1,5 @@
-// 课堂视频页状态：课程/录像/画面三级数据 + 下载任务镜像。
-// 数据只经 window.dela.vsjtu 进入；请求守卫丢弃过期响应（与 shuiyuan/timetable 同款）。
+// 新版课堂视频页状态：只接 v.sjtu，按学期浏览课程/录像/画面 + 下载任务镜像。
+// 学期/课程/录像数据只经 window.dela.vsjtu 进入；请求守卫丢弃过期响应。
 import { create } from 'zustand';
 import { showToast } from '../../app/toasts';
 import type {
@@ -7,15 +7,38 @@ import type {
   VideoCourse,
   VideoDownload,
   VideoStream,
+  VideoTerm,
 } from '../../../shared/vsjtu';
 import { errorText } from '../../workspace/store';
 import { lectureFileName } from './player-format';
 
 export type ClassroomPhase = 'loading' | 'connect' | 'ready';
 
+/** 上次选中的学期：只影响默认选中，不触发其他学期的查询。 */
+const TERM_STORAGE_KEY = 'dela.classroom.term';
+
+function rememberedTermId(): number | null {
+  try {
+    const value = Number(localStorage.getItem(TERM_STORAGE_KEY));
+    return Number.isInteger(value) && value !== 0 ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+function rememberTerm(id: number): void {
+  try {
+    localStorage.setItem(TERM_STORAGE_KEY, String(id));
+  } catch {
+    /* localStorage 不可用时只影响默认选中 */
+  }
+}
+
 interface ClassroomState {
   phase: ClassroomPhase;
   connectBusy: boolean;
+  terms: VideoTerm[];
+  selectedTermId: number | null;
   courses: VideoCourse[];
   coursesLoading: boolean;
   videos: Record<number, ClassroomVideo[]>;
@@ -34,6 +57,7 @@ interface ClassroomState {
   init: () => Promise<void>;
   refresh: () => Promise<void>;
   connect: () => Promise<void>;
+  selectTerm: (termId: number) => void;
   selectCourse: (courseId: number) => void;
   ensureVideos: (courseId: number) => Promise<void>;
   selectVideo: (courseId: number, videoId: number) => void;
@@ -51,6 +75,8 @@ let downloadSubscribed = false;
 export const useClassroom = create<ClassroomState>((set, get) => ({
   phase: 'loading',
   connectBusy: false,
+  terms: [],
+  selectedTermId: null,
   courses: [],
   coursesLoading: false,
   videos: {},
@@ -82,9 +108,28 @@ export const useClassroom = create<ClassroomState>((set, get) => ({
     const request = ++coursesRequest;
     set({ coursesLoading: true });
     try {
-      const courses = await window.dela!.vsjtu.listCourses();
+      const terms = await window.dela!.vsjtu.listTerms();
       if (request !== coursesRequest) return;
-      set({ phase: 'ready', courses, coursesLoading: false });
+      const remembered = rememberedTermId();
+      const selected =
+        terms.find((term) => term.id === remembered) ??
+        terms.find((term) => term.current) ??
+        terms[0];
+      if (!selected) {
+        set({ phase: 'ready', terms, selectedTermId: null, courses: [], coursesLoading: false });
+        set({ selectedCourseId: null, selectedVideoId: null });
+        return;
+      }
+      rememberTerm(selected.id);
+      const courses = await window.dela!.vsjtu.listCourses(selected.id);
+      if (request !== coursesRequest) return;
+      set({
+        phase: 'ready',
+        terms,
+        selectedTermId: selected.id,
+        courses,
+        coursesLoading: false,
+      });
       const { selectedCourseId } = get();
       const target = courses.some((course) => course.id === selectedCourseId)
         ? selectedCourseId
@@ -96,7 +141,6 @@ export const useClassroom = create<ClassroomState>((set, get) => ({
       get().selectCourse(target);
     } catch (error) {
       if (request !== coursesRequest) return;
-      // 一门课都没有时才降级为连接卡；否则保留页面，列表维持旧数据。失败原因走 toast。
       set(
         get().courses.length === 0
           ? { phase: 'connect', coursesLoading: false }
@@ -120,11 +164,12 @@ export const useClassroom = create<ClassroomState>((set, get) => ({
       showToast({ variant: 'error', title: '登录未完成', description: errorText(error) });
       return;
     }
-    // 登录窗口完成后 busy 先解除；拉课程期间由 coursesLoading 驱动「正在获取视频列表…」。
     videosRequest++;
     streamsRequest++;
     set({
       connectBusy: false,
+      terms: [],
+      selectedTermId: null,
       courses: [],
       videos: {},
       videosLoading: {},
@@ -136,6 +181,45 @@ export const useClassroom = create<ClassroomState>((set, get) => ({
       selectedVideoId: null,
     });
     await get().refresh();
+  },
+
+  selectTerm: (termId) => {
+    if (get().selectedTermId === termId) return;
+    const term = get().terms.find((item) => item.id === termId);
+    if (!term) return;
+    rememberTerm(termId);
+    const request = ++coursesRequest;
+    videosRequest++;
+    streamsRequest++;
+    set({
+      selectedTermId: termId,
+      courses: [],
+      coursesLoading: true,
+      videos: {},
+      videosLoading: {},
+      videosError: {},
+      streams: {},
+      streamsLoading: null,
+      streamsError: {},
+      selectedCourseId: null,
+      selectedVideoId: null,
+      seekRequest: null,
+      playbackTime: 0,
+    });
+    void (async () => {
+      try {
+        const courses = await window.dela!.vsjtu.listCourses(termId);
+        if (request !== coursesRequest) return;
+        set({ courses, coursesLoading: false });
+        const target = courses[0]?.id ?? null;
+        if (target === null) set({ selectedCourseId: null, selectedVideoId: null });
+        else get().selectCourse(target);
+      } catch (error) {
+        if (request !== coursesRequest) return;
+        set({ coursesLoading: false });
+        showToast({ variant: 'error', title: '课程加载失败', description: errorText(error) });
+      }
+    })();
   },
 
   selectCourse: (courseId) => {

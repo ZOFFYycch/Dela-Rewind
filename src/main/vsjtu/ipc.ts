@@ -23,6 +23,7 @@ import {
   checkVideoLogin,
   getStreams,
   listCourses,
+  listTerms,
   listVideos,
   getTranscript,
   formatTranscript,
@@ -30,9 +31,11 @@ import {
   VIDEO_HOME,
 } from './api';
 import { safeFileName } from './transcript';
-import { issuePlayback } from './playback';
+import { issueOldPlayback, issuePlayback } from './playback';
+import { getOldDownloadUrl, listOldVideos } from './old';
 
 const id = z.number().int().positive();
+const oldVideoId = z.number().int().negative();
 const downloads = new Map<string, { info: VideoDownload; item: DownloadItem; path: string }>();
 const pending = new Set<string>();
 // 观看是常规功能；只有下载属于试验功能（总开关与「课堂视频下载」子项都开启才可用）。
@@ -55,33 +58,34 @@ function notify(info: VideoDownload): void {
   }
 }
 
-async function downloadVideo(
+async function startDownload(
   event: IpcMainInvokeEvent,
-  videoId: number,
-  view: number,
-  suggestedName: string,
+  options: {
+    key: string;
+    suggestedName: string;
+    view: number;
+    resolveTarget: () => Promise<string>;
+  },
 ): Promise<void> {
-  const key = `${videoId}/${view}`;
+  const { key, suggestedName, view, resolveTarget } = options;
   if (pending.has(key) || downloads.get(key)?.info.state === 'progressing')
     throw new Error('该画面正在下载');
   pending.add(key);
   try {
-    const name = `${safeFileName(suggestedName) || videoId}-画面${view}.mp4`;
+    const name = `${safeFileName(suggestedName) || key}-画面${view}.mp4`;
     const parent = BrowserWindow.fromWebContents(event.sender);
     const directory = savedVideoDownloadDirectory();
-    const options = {
+    const dialogOptions = {
       title: '下载课堂视频',
       defaultPath: directory ? join(directory, name) : name,
       filters: [{ name: 'MP4 视频', extensions: ['mp4'] }],
     };
     const selected = parent
-      ? await dialog.showSaveDialog(parent, options)
-      : await dialog.showSaveDialog(options);
+      ? await dialog.showSaveDialog(parent, dialogOptions)
+      : await dialog.showSaveDialog(dialogOptions);
     if (selected.canceled || !selected.filePath) return;
     downloadEnabled();
-    const stream = (await getStreams(videoId)).find((stream) => stream.view === view);
-    if (!stream) throw new Error('该画面暂不可用');
-    const target = stream.url;
+    const target = await resolveTarget();
     const campus = await getCampusSession();
     await new Promise<void>((resolve, reject) => {
       const cleanup = () => {
@@ -132,7 +136,8 @@ async function downloadVideo(
       };
       campus.on('will-download', listener);
       try {
-        campus.downloadURL(target);
+        // 往期录像的签名分片缺少 Referer 会被媒体服务器拒绝。
+        campus.downloadURL(target, { headers: { Referer: 'https://v.sjtu.edu.cn/' } });
       } catch {
         cleanup();
         reject(new Error('无法启动视频下载'));
@@ -141,6 +146,39 @@ async function downloadVideo(
   } finally {
     pending.delete(key);
   }
+}
+
+async function downloadVideo(
+  event: IpcMainInvokeEvent,
+  videoId: number,
+  view: number,
+  suggestedName: string,
+): Promise<void> {
+  await startDownload(event, {
+    key: `${videoId}/${view}`,
+    suggestedName,
+    view,
+    resolveTarget: async () => {
+      const stream = (await getStreams(videoId)).find((item) => item.view === view);
+      if (!stream) throw new Error('该画面暂不可用');
+      return stream.url;
+    },
+  });
+}
+
+async function downloadOldVideo(
+  event: IpcMainInvokeEvent,
+  canvasCourseId: number,
+  videoId: number,
+  view: number,
+  suggestedName: string,
+): Promise<void> {
+  await startDownload(event, {
+    key: `old:${videoId}/${view}`,
+    suggestedName,
+    view,
+    resolveTarget: () => getOldDownloadUrl(canvasCourseId, videoId, view),
+  });
 }
 
 export function registerVsjtuIpc(): void {
@@ -171,13 +209,25 @@ export function registerVsjtuIpc(): void {
       },
     });
   });
-  ipcMain.handle('vsjtu:list-courses', (event) => {
+  ipcMain.handle('vsjtu:list-terms', (event) => {
     check(event);
-    return listCourses();
+    return listTerms();
+  });
+  ipcMain.handle('vsjtu:list-courses', (event, termId) => {
+    check(event);
+    return listCourses(termId === undefined || termId === null ? undefined : id.parse(termId));
   });
   ipcMain.handle('vsjtu:list-videos', (event, courseId) => {
     check(event);
     return listVideos(id.parse(courseId));
+  });
+  ipcMain.handle('vsjtu:old-videos', (event, courseId) => {
+    check(event);
+    return listOldVideos(id.parse(courseId));
+  });
+  ipcMain.handle('vsjtu:old-streams', (event, courseId, videoId) => {
+    check(event);
+    return issueOldPlayback(id.parse(courseId), oldVideoId.parse(videoId));
   });
   ipcMain.handle('vsjtu:streams', async (event, videoId) => {
     check(event);
@@ -209,6 +259,16 @@ export function registerVsjtuIpc(): void {
   ipcMain.handle('vsjtu:download', (event, videoId, view, name) => {
     checkDownload(event);
     return downloadVideo(event, id.parse(videoId), id.parse(view), z.string().max(200).parse(name));
+  });
+  ipcMain.handle('vsjtu:download-old', (event, courseId, videoId, view, name) => {
+    checkDownload(event);
+    return downloadOldVideo(
+      event,
+      id.parse(courseId),
+      oldVideoId.parse(videoId),
+      id.parse(view),
+      z.string().max(200).parse(name),
+    );
   });
   ipcMain.handle('vsjtu:downloads', (event) => {
     checkWorkspaceSender(event);
