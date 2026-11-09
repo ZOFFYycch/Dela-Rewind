@@ -8,7 +8,7 @@
 
 | 角色                                     | 路径                                                    | 说明                                                                             |
 | ---------------------------------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| **当前产品源码（唯一应继续开发的地方）** | `F:\Project\Fix_Another_Agent_byDS\Dela-Rewind`         | Dela Rewind 的 2.2.2 源码仓库，含自定义功能                                      |
+| **当前产品源码（唯一应继续开发的地方）** | `F:\Project\Fix_Another_Agent_byDS\Dela-Rewind`         | Dela Rewind 的 2.4.0 源码仓库，含自定义功能                                      |
 | 旧版本源码（历史参考）                   | `F:\Project\Fix_Another_Agent_byDS\Dela\Dela-src`       | 2.2.1 上完成旧版课堂视频/学期选择的版本；**不要再基于它开发**                    |
 | 上游 2.2.1 基线                          | `F:\Project\Fix_Another_Agent_byDS\Dela-upstream-2.2.1` | 用于三方合并的官方 2.2.1 快照，不是产品                                          |
 | 工作区根                                 | `F:\Project\Fix_Another_Agent_byDS\Dela`                | 旧源码、research、调试脚本所在目录；`Dela-Rewind` 是它的**同级目录**，不在它里面 |
@@ -143,14 +143,15 @@ pnpm exec install-electron
 | -------------- | ------------------------------------------------------------ |
 | 当前 fork      | https://github.com/ZOFFYycch/Dela-Rewind                     |
 | 上游官方       | https://github.com/Chang-Yo/Dela                             |
-| Release v2.2.2 | https://github.com/ZOFFYycch/Dela-Rewind/releases/tag/v2.2.2 |
+| Release v2.4.0 | https://github.com/ZOFFYycch/Dela-Rewind/releases/tag/v2.4.0 |
 
 当前 git 状态（本地）：
 
 ```text
 main              6f4c808  上游 2.2.2 镜像
-custom            a195fa1  已 push 的稳定/文档基线
-feat/video-archive ee91e6f 本地开发分支，最新功能，未 push
+custom            v2.4.0   已 push 的稳定/发布基线
+upgrade/2.4.0     2.4.0    2.4.0 升级分支（本地/已并回 custom）
+feat/video-archive ee91e6f 2.2.2 自定义功能历史分支
 port-2.2.2        6654237  首次拆分课堂视频/更新逻辑的分支
 ```
 
@@ -158,12 +159,12 @@ Remote 里还有大量从上游继承的分支；不要以为它们都是本项�
 
 Release 资产：
 
-- `Dela-Rewind-2.2.2-win-x64.exe`
-- `Dela-Rewind-2.2.2-win-x64.exe.blockmap`
+- `Dela-Rewind-2.4.0-win-x64.exe`
+- `Dela-Rewind-2.4.0-win-x64.exe.blockmap`
 - `latest.yml`
-- `Dela-Rewind-2.2.2-win-x64.exe.sha256.txt`
+- `Dela-Rewind-2.4.0-win-x64.exe.sha256.txt`
 
-Release 标签 `v2.2.2` 指向 `6654237`；之后的功能提交和文档提交在 `custom`/`feat/video-archive`，尚未进入该 Release。
+Release 标签 `v2.4.0` 指向 `custom` 分支的 2.4.0 合并提交。
 
 ## 6. 用户数据与凭据（不要提交、不要外发）
 
@@ -210,13 +211,9 @@ Release 标签 `v2.2.2` 指向 `6654237`；之后的功能提交和文档提交�
 
 ## 9. 当前功能状态（重要）
 
-- 最新源码：`feat/video-archive`，`ee91e6f`；
-- 已实现：资料全部学期、新版学期选择、旧版课堂视频、递归层级壳、统计页、教师列；
-- 统计任务目前保存在渲染层 store：**页面切换不丢，应用重启会丢**；
-- 传输页目前是占位，尚未接百度网盘；
-- `F:\Tool\Download\Dela Rewind` 安装版早于最新测试版，不要拿它判断最新 UI；
-- 最新测试版看 `F:\Tool\Download\Dela-Rewind-Test`；
-- Release v2.2.2 早于最新功能提交。
+- 最新源码：`custom` / `upgrade/2.4.0`，2.4.0；
+- 最新测试版：`F:\Tool\Download\Dela-Rewind-Test`，2.4.0；
+- Release v2.4.0 对应 2.4.0 安装包。
 
 ## 10. 给后续 AI 的开工检查清单
 
